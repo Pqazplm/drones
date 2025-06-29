@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
 
-"""This module provides the rpcontacts package."""
+"""Этот модуль предоставляет пакет программы"""
 
 __version__ = "0.1.0"

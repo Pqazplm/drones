@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 
 
-"""This module provides DB drones entry point script."""
+
+"""Точка входа"""
 
 from dbdrones.main import main
 

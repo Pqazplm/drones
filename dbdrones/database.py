@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
-# rpcontacts/database.py
 
-"""This module provides a database connection."""
+
+"""Этот модуль обеспечивает подключение к базе данных"""
 
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery
 
 def _createContactsTable():
-    """Create the contacts table in the database."""
+    """Создает таблицу для базы данных"""
     createTableQuery = QSqlQuery()
     return createTableQuery.exec(
         """
-        CREATE TABLE IF NOT EXISTS contacts (
+        CREATE TABLE IF NOT EXISTS data (
             id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
             model_name VARCHAR(40) NOT NULL,
             weight VARCHAR(50) NOT NULL,
@@ -22,14 +21,15 @@ def _createContactsTable():
     )
 
 def createConnection(databaseName):
-    """Create and open a database connection."""
+    """создает и подключается к бд"""
     connection = QSqlDatabase.addDatabase("QSQLITE")
     connection.setDatabaseName(databaseName)
 
+    """обработка ошибки"""
     if not connection.open():
         QMessageBox.warning(
             None,
-            "RP Contact",
+            "DB Drones",
             f"Database Error: {connection.lastError().text()}",
         )
         return False

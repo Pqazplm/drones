@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 
 
-"""This module provides views to manage the contacts table."""
+"""Этот модуль предоставляет управление таблицей"""
 
 
 from PyQt5.QtCore import Qt
@@ -18,67 +17,115 @@ from PyQt5.QtWidgets import (
     QTableView,
     QVBoxLayout,
     QWidget,
+    QHeaderView,
+    QSizePolicy,
+
 )
-# -*- coding: utf-8 -*-
-# rpcontacts/views.py
-
-
 from .model import ContactsModel
 
 
-
 class Window(QMainWindow):
-    """Main Window."""
+    """Главное окно приложения для управления базой данных дронов"""
+
     def __init__(self, parent=None):
-        """Initializer."""
         super().__init__(parent)
-        self.setWindowTitle("DB Drones")
-        self.resize(550, 250)
+        self.setWindowTitle("База данных дронов")
+
+        # Устанавливаем минимальный размер окна
+        self.setMinimumSize(570, 250)
+
+        # Центральный виджет и основной макет
         self.centralWidget = QWidget()
         self.setCentralWidget(self.centralWidget)
-        self.layout = QHBoxLayout()
-        self.centralWidget.setLayout(self.layout)
+        self.mainLayout = QHBoxLayout(self.centralWidget)
+
+        # Убираем отступы, чтобы таблица использовала все пространство
+        self.mainLayout.setContentsMargins(0, 0, 0, 0)
+        self.mainLayout.setSpacing(0)
+
+        # Инициализация модели данных
         self.contactsModel = ContactsModel()
+
+        # Настройка интерфейса
         self.setupUI()
 
     def setupUI(self):
-        """Setup the main window's GUI."""
+        """Настройка графического интерфейса с правильным масштабированием"""
+
+        # ===== ТАБЛИЦА ДАННЫХ =====
         self.table = QTableView()
         self.table.setModel(self.contactsModel.model)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+        # Настройка заголовков таблицы
+        header = self.table.horizontalHeader()
+        header.setStretchLastSection(True)  # Растягиваем последний столбец
+        header.setSectionResizeMode(QHeaderView.Interactive)  # Разрешаем изменение ширины
+
+        # Фиксированная высота строк
+        self.table.verticalHeader().setDefaultSectionSize(30)
+
+        # Политика размеров - растягивание по обоим направлениям
+        self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Первоначальное масштабирование столбцов
         self.table.resizeColumnsToContents()
 
-        self.addButton = QPushButton("Add...")
-        self.addButton.clicked.connect(self.openAddDialog)
-        self.deleteButton = QPushButton("Delete")
-        self.deleteButton.clicked.connect(self.deleteData)
-        self.clearAllButton = QPushButton("Clear All")
-        self.clearAllButton.clicked.connect(self.clearData)
-        self.searchButton = QPushButton("Search")
-        self.searchButton.clicked.connect(self.searchData)
-        self.resetSearchButton = QPushButton("Reset Search")
-        self.resetSearchButton.clicked.connect(self.resetSearch)
+        # ===== ПАНЕЛЬ КНОПОК =====
+        # Контейнер для кнопок с фиксированной шириной
+        buttonsWidget = QWidget()
+        buttonsWidget.setFixedWidth(200)  # Фиксированная ширина панели кнопок
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.addButton)
-        layout.addWidget(self.deleteButton)
-        layout.addStretch()
-        layout.addWidget(self.clearAllButton)
-        layout.addWidget(self.searchButton)
-        layout.addWidget(self.resetSearchButton)
+        buttonsLayout = QVBoxLayout(buttonsWidget)
+        buttonsLayout.setContentsMargins(10, 10, 10, 10)  # Отступы внутри панели
+        buttonsLayout.setSpacing(10)
+        buttonsLayout.setAlignment(Qt.AlignTop)
 
-        self.layout.addWidget(self.table)
-        self.layout.addLayout(layout)
+        # Список кнопок
+        buttons = [
+            ("Добавить...", self.openAddDialog),
+            ("Удалить", self.deleteData),
+            ("Очистить все", self.clearData),
+            ("Поиск", self.searchData),
+            ("Сбросить поиск", self.resetSearch)
+        ]
+
+        # Создаем кнопки
+        for text, handler in buttons:
+            btn = QPushButton(text)
+            btn.setFixedHeight(40)
+            btn.clicked.connect(handler)
+            buttonsLayout.addWidget(btn)
+
+        # Добавляем растягивающееся пространство между кнопками
+        buttonsLayout.insertStretch(2)
+
+        # ===== РАСПОЛОЖЕНИЕ ЭЛЕМЕНТОВ =====
+        # Добавляем таблицу и панель кнопок в главный макет
+        self.mainLayout.addWidget(self.table)
+        self.mainLayout.addWidget(buttonsWidget)
+
+        # Устанавливаем приоритет растяжения (таблица будет растягиваться)
+        self.mainLayout.setStretch(0, 1)
+
+        # Устанавливаем фокус на таблицу
+        self.table.setFocus()
+
+    def resizeEvent(self, event):
+        """Обработчик изменения размера окна"""
+        super().resizeEvent(event)
+        # При изменении размера обновляем таблицу
+        self.table.resizeColumnsToContents()
 
     def openAddDialog(self):
-        """Open the Add Data dialog."""
+        """Открытие диалогового окна (Добавить)"""
         dialog = AddDialog(self)
         if dialog.exec() == QDialog.Accepted:
             self.contactsModel.addData(dialog.data)
             self.table.resizeColumnsToContents()
 
     def deleteData(self):
-        """Delete the selected contact from the database."""
+        """Удаление выбранной позиции из бд"""
         row = self.table.currentIndex().row()
         if row < 0:
             return
@@ -86,7 +133,7 @@ class Window(QMainWindow):
         messageBox = QMessageBox.warning(
             self,
             "Warning!",
-            "Do you want to remove the selected contact?",
+            "Вы уверены, что хотите удалить выбранную позицию?",
             QMessageBox.Ok | QMessageBox.Cancel,
         )
 
@@ -94,11 +141,11 @@ class Window(QMainWindow):
             self.contactsModel.deleteData(row)
 
     def clearData(self):
-        """Remove all contacts from the database."""
+        """Очистка"""
         messageBox = QMessageBox.warning(
             self,
             "Warning!",
-            "Do you want to remove all data?",
+            "Вы уверены, что хотите все очистить?",
             QMessageBox.Ok | QMessageBox.Cancel,
         )
 
@@ -106,33 +153,33 @@ class Window(QMainWindow):
             self.contactsModel.clearData()
 
     def searchData(self):
-        """Open the Search dialog and perform search."""
+        """Открытие диалогового окна (Поиск)"""
         dialog = SearchDialog(self)
         if dialog.exec() == QDialog.Accepted:
             self.contactsModel.searchData(dialog.search_text)
 
         # Добавляем кнопку сброса поиска
-        self.resetSearchButton = QPushButton("Reset Search")
+        self.resetSearchButton = QPushButton("Сброс поиска")
         self.resetSearchButton.clicked.connect(self.resetSearch)
 
     def resetSearch(self):
-        """Reset the search filter."""
+        """Сброс поиска"""
         self.contactsModel.model.setFilter("")
         self.contactsModel.model.select()
 
 class AddDialog(QDialog):
-    """Add Data dialog."""
+    """Диалоговое окно (Добавить)"""
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.setWindowTitle("Add")
+        self.setWindowTitle("Добавить")
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.data = None
         self.setupUI()
 
     def setupUI(self):
-        """Setup the Add dialog's GUI."""
+        """Установка графического интерфейса диалогового окна (Добавить)"""
         # Create line edits for data fields
         self.nameField = QLineEdit()
         self.nameField.setObjectName("Model_name")
@@ -160,7 +207,7 @@ class AddDialog(QDialog):
         self.layout.addWidget(self.buttonsBox)
 
     def accept(self):  # <- Метод должен быть здесь, а не внутри setupUI!
-        """Accept the data provided through the dialog."""
+        """Подтверждение изменений"""
         self.data = []
         for field in (self.nameField, self.weightField,
                       self.manufactorerField, self.distanceField):
@@ -168,7 +215,7 @@ class AddDialog(QDialog):
                 QMessageBox.critical(
                     self,
                     "Error!",
-                    f"You must provide a data's {field.objectName()}",
+                    f"Вы должны добавить какую-то информацию {field.objectName()}",
                 )
                 self.data = None
                 return
@@ -177,7 +224,7 @@ class AddDialog(QDialog):
 
 
 class SearchDialog(QDialog):
-    """Search Data dialog."""
+    """Диалоговое окно (Поиск)"""
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -188,12 +235,12 @@ class SearchDialog(QDialog):
         self.setupUI()
 
     def setupUI(self):
-        """Setup the Search dialog's GUI."""
+        """Установка графического интерфейса диалогового окна (Поиск)"""
         self.searchField = QLineEdit()
-        self.searchField.setPlaceholderText("Enter search text...")
+        self.searchField.setPlaceholderText("Введите текст...")
 
         layout = QFormLayout()
-        layout.addRow("Search:", self.searchField)
+        layout.addRow("Поиск:", self.searchField)
         self.layout.addLayout(layout)
 
         self.buttonsBox = QDialogButtonBox(self)
@@ -206,13 +253,13 @@ class SearchDialog(QDialog):
         self.layout.addWidget(self.buttonsBox)
 
     def accept(self):
-        """Accept the search text provided through the dialog."""
+        """Подтверждение поиска"""
         self.search_text = self.searchField.text()
         if not self.search_text:
             QMessageBox.critical(
                 self,
                 "Error!",
-                "You must provide a search text",
+                "Вы должны ввести текст",
             )
             self.search_text = None
             return

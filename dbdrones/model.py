@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
-# rpcontacts/model.py
 
-"""This module provides a model to manage the contacts table."""
+
+"""Этот модуль реализует модель для управления таблицей """
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtSql import QSqlTableModel
@@ -13,9 +12,9 @@ class ContactsModel:
 
     @staticmethod
     def _createModel():
-        """Create and set up the model."""
+        """Создание и настройка модели"""
         tableModel = QSqlTableModel()
-        tableModel.setTable("contacts")
+        tableModel.setTable("data")
         tableModel.setEditStrategy(QSqlTableModel.OnFieldChange)
         tableModel.select()
         headers = ("ID", "Model_name", "Weight", "Manufactorer", "Max_distance")
@@ -24,37 +23,37 @@ class ContactsModel:
         return tableModel
 
     def _generate_hash(self, data):
-        """Generate a numeric hash from the data fields."""
+        """Генерирование числового хэша из полей данных (нужно для присваивания ID)"""
         combined = "".join(str(field) for field in data)
         return abs(hash(combined)) % (10 ** 4)  # 8-digit numeric hash
 
     def addData(self, data):
-        """Add new data with generated hash ID."""
-        # Generate hash ID from the data
+
+        # Генерация хэш-идентификатора на основе полученных данных
         hash_id = self._generate_hash(data)
 
         rows = self.model.rowCount()
         self.model.insertRows(rows, 1)
 
-        # Set the ID first
+        # Установка 1-го ID
         self.model.setData(self.model.index(rows, 0), hash_id)
 
-        # Set the other fields
+        # Установка остальных полей
         for column, field in enumerate(data):
             self.model.setData(self.model.index(rows, column + 1), field)
-
+        # Обработка ошибки
         if not self.model.submitAll():
             print("SQL Error:", self.model.lastError().text())
         self.model.select()
 
     def deleteData(self, row):
-        """Remove a data from the database."""
+        """Удаление выбранных данных из бд"""
         self.model.removeRow(row)
         self.model.submitAll()
         self.model.select()
 
     def clearData(self):
-        """Remove all data in the database."""
+        """Удаление всех данных из бд"."""
         self.model.setEditStrategy(QSqlTableModel.OnManualSubmit)
         self.model.removeRows(0, self.model.rowCount())
         self.model.submitAll()
@@ -63,7 +62,7 @@ class ContactsModel:
 
     # Добавляем в класс ContactsModel новый метод
     def searchData(self, search_text):
-        """Search data in all fields."""
+        """Поиск по всем полям"""
         self.model.setFilter(f"""
             model_name LIKE '%{search_text}%' OR
             weight LIKE '%{search_text}%' OR

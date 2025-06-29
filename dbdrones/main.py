@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
-# rpcontacts/main.py
 
-"""This module provides RP Contacts application."""
+"""Этот модуль реализует приложение """
 
 import sys
 
@@ -11,14 +9,14 @@ from .database import createConnection
 from .views import Window
 
 def main():
-    """RP Contacts main function."""
-    # Create the application
+    """Основная функция"""
+    # Создание приложения
     app = QApplication(sys.argv)
-    # Connect to the database before creating any window
-    if not createConnection("contacts.sqlite"):
+    # Подключение к бд перед созданием окна приложения
+    if not createConnection("data.sqlite"):
         sys.exit(1)
-    # Create the main window if the connection succeeded
+    # Создание главного окна приложения, если подключение прошло успешно
     win = Window()
     win.show()
-    # Run the event loop
+    # Запуск цикла работы
     sys.exit(app.exec_())
