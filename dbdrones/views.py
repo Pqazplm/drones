@@ -12,24 +12,33 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+# -*- coding: utf-8 -*-
+# rpcontacts/views.py
+
+# Snip...
+from .model import ContactsModel
+
+
 
 class Window(QMainWindow):
     """Main Window."""
     def __init__(self, parent=None):
         """Initializer."""
         super().__init__(parent)
-        self.setWindowTitle("RP Contacts")
+        self.setWindowTitle("DB Drones")
         self.resize(550, 250)
         self.centralWidget = QWidget()
         self.setCentralWidget(self.centralWidget)
         self.layout = QHBoxLayout()
         self.centralWidget.setLayout(self.layout)
+        self.contactsModel = ContactsModel()
         self.setupUI()
 
     def setupUI(self):
         """Setup the main window's GUI."""
         # Создание таблицы для отображения виджетов
         self.table = QTableView()
+        self.table.setModel(self.contactsModel.model)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.resizeColumnsToContents()
         # Созданиие кнопок

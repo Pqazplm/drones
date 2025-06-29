@@ -1,20 +1,24 @@
 # -*- coding: utf-8 -*-
+# rpcontacts/main.py
 
-
-"""This module provides DB drones application."""
+"""This module provides RP Contacts application."""
 
 import sys
 
 from PyQt5.QtWidgets import QApplication
 
+from .database import createConnection
 from .views import Window
 
 def main():
-    """DB drones main function."""
-    # Создание приложения
+    """RP Contacts main function."""
+    # Create the application
     app = QApplication(sys.argv)
-    # Создание главного окна
+    # Connect to the database before creating any window
+    if not createConnection("contacts.sqlite"):
+        sys.exit(1)
+    # Create the main window if the connection succeeded
     win = Window()
     win.show()
-    # Запуск цикла
-    sys.exit(app.exec())
+    # Run the event loop
+    sys.exit(app.exec_())
