@@ -43,12 +43,11 @@ class Window(QMainWindow):
 
     def setupUI(self):
         """Setup the main window's GUI."""
-        # Создание таблицы для отображения виджетов
         self.table = QTableView()
         self.table.setModel(self.contactsModel.model)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.resizeColumnsToContents()
-        # Созданиие кнопок
+
         self.addButton = QPushButton("Add...")
         self.addButton.clicked.connect(self.openAddDialog)
         self.deleteButton = QPushButton("Delete")
@@ -56,15 +55,18 @@ class Window(QMainWindow):
         self.clearAllButton = QPushButton("Clear All")
         self.clearAllButton.clicked.connect(self.clearData)
         self.searchButton = QPushButton("Search")
-        # Реализация графического интерфейса
+        self.searchButton.clicked.connect(self.searchData)
+        self.resetSearchButton = QPushButton("Reset Search")
+        self.resetSearchButton.clicked.connect(self.resetSearch)
+
         layout = QVBoxLayout()
         layout.addWidget(self.addButton)
         layout.addWidget(self.deleteButton)
         layout.addStretch()
         layout.addWidget(self.clearAllButton)
-        self.layout.addWidget(self.table)
-        self.layout.addLayout(layout)
         layout.addWidget(self.searchButton)
+        layout.addWidget(self.resetSearchButton)
+
         self.layout.addWidget(self.table)
         self.layout.addLayout(layout)
 
@@ -102,6 +104,21 @@ class Window(QMainWindow):
 
         if messageBox == QMessageBox.Ok:
             self.contactsModel.clearData()
+
+    def searchData(self):
+        """Open the Search dialog and perform search."""
+        dialog = SearchDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            self.contactsModel.searchData(dialog.search_text)
+
+        # Добавляем кнопку сброса поиска
+        self.resetSearchButton = QPushButton("Reset Search")
+        self.resetSearchButton.clicked.connect(self.resetSearch)
+
+    def resetSearch(self):
+        """Reset the search filter."""
+        self.contactsModel.model.setFilter("")
+        self.contactsModel.model.select()
 
 class AddDialog(QDialog):
     """Add Data dialog."""
@@ -157,3 +174,46 @@ class AddDialog(QDialog):
                 return
             self.data.append(field.text())
         super().accept()  # Важно: вызываем родительский accept()
+
+
+class SearchDialog(QDialog):
+    """Search Data dialog."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.setWindowTitle("Search")
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.search_text = None
+        self.setupUI()
+
+    def setupUI(self):
+        """Setup the Search dialog's GUI."""
+        self.searchField = QLineEdit()
+        self.searchField.setPlaceholderText("Enter search text...")
+
+        layout = QFormLayout()
+        layout.addRow("Search:", self.searchField)
+        self.layout.addLayout(layout)
+
+        self.buttonsBox = QDialogButtonBox(self)
+        self.buttonsBox.setOrientation(Qt.Horizontal)
+        self.buttonsBox.setStandardButtons(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        self.buttonsBox.accepted.connect(self.accept)
+        self.buttonsBox.rejected.connect(self.reject)
+        self.layout.addWidget(self.buttonsBox)
+
+    def accept(self):
+        """Accept the search text provided through the dialog."""
+        self.search_text = self.searchField.text()
+        if not self.search_text:
+            QMessageBox.critical(
+                self,
+                "Error!",
+                "You must provide a search text",
+            )
+            self.search_text = None
+            return
+        super().accept()
