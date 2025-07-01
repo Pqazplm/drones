@@ -32,7 +32,7 @@ class Window(QMainWindow):
         self.setWindowTitle("База данных дронов")
 
         # Устанавливаем минимальный размер окна
-        self.setMinimumSize(570, 250)
+        self.setMinimumSize(600, 250)
 
         # Центральный виджет и основной макет
         self.centralWidget = QWidget()
@@ -119,7 +119,7 @@ class Window(QMainWindow):
 
     def openAddDialog(self):
         """Открытие диалогового окна (Добавить)"""
-        dialog = AddDialog(self)
+        dialog = AddDialog(self)  # Передаем self как родителя
         if dialog.exec() == QDialog.Accepted:
             self.contactsModel.addData(dialog.data)
             self.table.resizeColumnsToContents()
@@ -167,60 +167,140 @@ class Window(QMainWindow):
         self.contactsModel.model.setFilter("")
         self.contactsModel.model.select()
 
-class AddDialog(QDialog):
-    """Диалоговое окно (Добавить)"""
 
+from PyQt5.QtWidgets import QComboBox, QInputDialog
+
+
+class AddDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.setWindowTitle("Добавить")
+        self.setWindowTitle("Добавить дрон")
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.data = None
         self.setupUI()
 
     def setupUI(self):
-        """Установка графического интерфейса диалогового окна (Добавить)"""
-        # Create line edits for data fields
-        self.nameField = QLineEdit()
-        self.nameField.setObjectName("Model_name")
-        self.weightField = QLineEdit()
-        self.weightField.setObjectName("Weight")
-        self.manufactorerField = QLineEdit()
-        self.manufactorerField.setObjectName("Manufactorer")
-        self.distanceField = QLineEdit()
-        self.distanceField.setObjectName("Max_distance")
-        # Lay out the data fields
-        layout = QFormLayout()
-        layout.addRow("Model_name:", self.nameField)
-        layout.addRow("Weight:", self.weightField)
-        layout.addRow("Manufactorer:", self.manufactorerField)
-        layout.addRow("Max_distance:", self.distanceField)
-        self.layout.addLayout(layout)
-        # Add standard buttons to the dialog and connect them
-        self.buttonsBox = QDialogButtonBox(self)
-        self.buttonsBox.setOrientation(Qt.Horizontal)
-        self.buttonsBox.setStandardButtons(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
-        self.buttonsBox.accepted.connect(self.accept)
-        self.buttonsBox.rejected.connect(self.reject)
-        self.layout.addWidget(self.buttonsBox)
+        # Создаем выпадающие списки
+        self.modelCombo = QComboBox()
+        self.manufacturerCombo = QComboBox()
 
-    def accept(self):  # <- Метод должен быть здесь, а не внутри setupUI!
-        """Подтверждение изменений"""
-        self.data = []
-        for field in (self.nameField, self.weightField,
-                      self.manufactorerField, self.distanceField):
-            if not field.text():
-                QMessageBox.critical(
-                    self,
-                    "Error!",
-                    f"Вы должны добавить какую-то информацию {field.objectName()}",
-                )
-                self.data = None
-                return
-            self.data.append(field.text())
-        super().accept()  # Важно: вызываем родительский accept()
+        # Настраиваем списки
+        self.setupComboBox(self.modelCombo, "модель", self.getModels)
+        self.setupComboBox(self.manufacturerCombo, "производителя", self.getManufacturers)
+
+        # Остальные поля
+        self.weightField = QLineEdit()
+        self.distanceField = QLineEdit()
+
+        # Форма
+        form = QFormLayout()
+        form.addRow("Модель:", self.modelCombo)
+        form.addRow("Производитель:", self.manufacturerCombo)
+        form.addRow("Вес (г):", self.weightField)
+        form.addRow("Макс. дистанция (м):", self.distanceField)
+        self.layout.addLayout(form)
+
+        # Кнопки
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        self.layout.addWidget(buttons)
+
+    def setupComboBox(self, combo, item_type, data_func):
+        """Настраивает выпадающий список"""
+        combo.clear()
+        combo.addItems(data_func())
+        combo.insertItem(0, "")  # Пустая строка в начале
+        combo.addItem(f"+ Добавить {item_type}", "add_item")
+        combo.setCurrentIndex(0)  # Выбираем пустую строку по умолчанию
+
+        combo.currentIndexChanged.connect(
+            lambda: self.handleComboSelection(combo, item_type, data_func)
+        )
+
+    def handleComboSelection(self, combo, item_type, data_func):
+        """Обрабатывает выбор элемента"""
+        if combo.currentData() == "add_item":
+            # Запоминаем текущий индекс перед открытием диалога
+            prev_index = combo.currentIndex()
+
+            if item_type == "модель":
+                new_item, ok = QInputDialog.getText(
+                    self, f"Добавить {item_type}", f"Введите название {item_type}:")
+
+                if ok and new_item:
+                    if self.parent().contactsModel.addModel(new_item):
+                        self.refreshCombo(combo, item_type, data_func, new_item)
+                    else:
+                        QMessageBox.warning(self, "Ошибка", "Не удалось добавить")
+                        combo.setCurrentIndex(0)
+                else:
+                    # При отмене возвращаем выбор на первый элемент
+                    combo.setCurrentIndex(0)
+            else:
+                manufacturer, ok = QInputDialog.getText(
+                    self, "Добавить производителя", "Введите название производителя:")
+
+                if ok and manufacturer:
+                    country, ok = QInputDialog.getText(
+                        self, "Страна производителя", "Введите страну производителя:")
+
+                    if ok and country:
+                        if self.parent().contactsModel.addManufacturer(manufacturer, country):
+                            self.refreshCombo(combo, item_type, data_func, manufacturer)
+                        else:
+                            QMessageBox.warning(self, "Ошибка", "Не удалось добавить")
+                            combo.setCurrentIndex(0)
+                    else:
+                        combo.setCurrentIndex(0)
+                else:
+                    combo.setCurrentIndex(0)
+
+    def refreshCombo(self, combo, item_type, data_func, select_item=None):
+        """Обновляет содержимое комбобокса"""
+        current_text = combo.currentText()
+        combo.clear()
+        combo.addItems(data_func())
+        combo.insertItem(0, "")
+        combo.addItem(f"+ Добавить {item_type}", "add_item")
+
+        if select_item:
+            index = combo.findText(select_item)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+        else:
+            combo.setCurrentIndex(0)
+
+    def getModels(self):
+        return self.parent().contactsModel.getModels()
+
+    def getManufacturers(self):
+        return self.parent().contactsModel.getManufacturers()
+
+    def accept(self):
+        """Проверка данных перед сохранением"""
+        model = self.modelCombo.currentText()
+        manufacturer = self.manufacturerCombo.currentText()
+        weight = self.weightField.text()
+        distance = self.distanceField.text()
+
+        # Проверка заполненности полей
+        if not all([model, manufacturer, weight, distance]):
+            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены")
+            return
+
+        # Проверка, что выбраны существующие значения (не пустая строка и не "+ Добавить")
+        if model == "" or self.modelCombo.currentData() == "add_item":
+            QMessageBox.warning(self, "Ошибка", "Выберите модель из списка")
+            return
+
+        if manufacturer == "" or self.manufacturerCombo.currentData() == "add_item":
+            QMessageBox.warning(self, "Ошибка", "Выберите производителя из списка")
+            return
+
+        self.data = [model, weight, manufacturer, distance]
+        super().accept()
 
 
 class SearchDialog(QDialog):

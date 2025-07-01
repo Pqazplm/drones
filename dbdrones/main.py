@@ -15,6 +15,10 @@ def main():
     # Подключение к бд перед созданием окна приложения
     if not createConnection("data.sqlite"):
         sys.exit(1)
+    elif not createConnection("manufacture.sqlite"):
+        sys.exit(1)
+    elif not createConnection("model.sqlite"):
+        sys.exit(1)
     # Создание главного окна приложения, если подключение прошло успешно
     win = Window()
     win.show()

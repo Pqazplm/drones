@@ -3,8 +3,8 @@
 """Этот модуль реализует модель для управления таблицей """
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtSql import QSqlTableModel
 
+from PyQt5.QtSql import QSqlTableModel, QSqlQuery
 
 class ContactsModel:
     def __init__(self):
@@ -17,7 +17,7 @@ class ContactsModel:
         tableModel.setTable("data")
         tableModel.setEditStrategy(QSqlTableModel.OnFieldChange)
         tableModel.select()
-        headers = ("ID", "Model_name", "Weight", "Manufactorer", "Max_distance")
+        headers = ("ID", "Модель", "Вес (г)", "Производитель", "Макс. дистанция (м)")
         for columnIndex, header in enumerate(headers):
             tableModel.setHeaderData(columnIndex, Qt.Horizontal, header)
         return tableModel
@@ -45,6 +45,39 @@ class ContactsModel:
         if not self.model.submitAll():
             print("SQL Error:", self.model.lastError().text())
         self.model.select()
+
+    def getManufacturers(self):
+        """Получение списка производителей"""
+        query = QSqlQuery()
+        query.exec("SELECT name FROM manufacture")
+        manufacturers = []
+        while query.next():
+            manufacturers.append(query.value(0))
+        return manufacturers
+
+    def getModels(self):
+        """Получение списка моделей"""
+        query = QSqlQuery()
+        query.exec("SELECT name FROM model")
+        models = []
+        while query.next():
+            models.append(query.value(0))
+        return models
+
+    def addManufacturer(self, name, country):
+        """Добавление нового производителя"""
+        query = QSqlQuery()
+        query.prepare("INSERT INTO manufacture (name, country) VALUES (?, ?)")
+        query.addBindValue(name)
+        query.addBindValue(country)
+        return query.exec()
+
+    def addModel(self, name):
+        """Добавление новой модели"""
+        query = QSqlQuery()
+        query.prepare("INSERT INTO model (name) VALUES (?)")
+        query.addBindValue(name)
+        return query.exec()
 
     def deleteData(self, row):
         """Удаление выбранных данных из бд"""
