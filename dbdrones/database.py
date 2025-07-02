@@ -8,8 +8,9 @@ import os
 from pathlib import Path
 
 
+
 def _createContactsTable():
-    """Создает таблицу для базы данных"""
+    """Создает таблицу с полем для хранения изображений"""
     createTableQuery = QSqlQuery()
     return createTableQuery.exec(
         """
@@ -18,7 +19,8 @@ def _createContactsTable():
             model_name VARCHAR(40) NOT NULL,
             weight VARCHAR(50) NOT NULL,
             manufacture VARCHAR(40) NOT NULL,
-            max_distance VARCHAR(50) NOT NULL
+            max_distance VARCHAR(50) NOT NULL,
+            image_path TEXT             
         )
         """
     )

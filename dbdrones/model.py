@@ -3,8 +3,9 @@
 """Этот модуль реализует модель для управления таблицей """
 
 from PyQt5.QtCore import Qt
-
+import os
 from PyQt5.QtSql import QSqlTableModel, QSqlQuery
+from PyQt5.QtGui import QPixmap
 
 class ContactsModel:
     def __init__(self):
@@ -17,7 +18,7 @@ class ContactsModel:
         tableModel.setTable("data")
         tableModel.setEditStrategy(QSqlTableModel.OnFieldChange)
         tableModel.select()
-        headers = ("ID", "Модель", "Вес (г)", "Производитель", "Макс. дистанция (м)")
+        headers = ("ID", "Модель", "Вес (г)", "Производитель", "Макс. дистанция (м)", "Изображение")
         for columnIndex, header in enumerate(headers):
             tableModel.setHeaderData(columnIndex, Qt.Horizontal, header)
         return tableModel
@@ -28,23 +29,36 @@ class ContactsModel:
         return abs(hash(combined)) % (10 ** 4)  # 8-digit numeric hash
 
     def addData(self, data):
-
-        # Генерация хэш-идентификатора на основе полученных данных
+        """Добавляет данные с изображением"""
         hash_id = self._generate_hash(data)
-
         rows = self.model.rowCount()
         self.model.insertRows(rows, 1)
 
-        # Установка 1-го ID
-        self.model.setData(self.model.index(rows, 0), hash_id)
+        # Устанавливаем значения для всех полей
+        self.model.setData(self.model.index(rows, 0), hash_id)  # ID
+        self.model.setData(self.model.index(rows, 1), data[0])  # model_name
+        self.model.setData(self.model.index(rows, 2), data[1])  # weight
+        self.model.setData(self.model.index(rows, 3), data[2])  # manufacture
+        self.model.setData(self.model.index(rows, 4), data[3])  # max_distance
 
-        # Установка остальных полей
-        for column, field in enumerate(data):
-            self.model.setData(self.model.index(rows, column + 1), field)
-        # Обработка ошибки
+        # Сохраняем путь к изображению (5-й столбец)
+        if len(data) > 4 and data[4]:
+            self.model.setData(self.model.index(rows, 5), data[4])  # image_path
+
         if not self.model.submitAll():
             print("SQL Error:", self.model.lastError().text())
         self.model.select()
+
+    def _store_image(self, row, image_path):
+        """Сохраняет изображение в БД"""
+        if os.path.exists(image_path):
+            # Вариант 1: Сохраняем путь к файлу
+            self.model.setData(self.model.index(row, 6), image_path)
+
+            # Вариант 2: Сохраняем бинарные данные (раскомментировать)
+             #with open(image_path, 'rb') as f:
+                # image_data = f.read()
+             #self.model.setData(self.model.index(row, 5), image_data)
 
     def getManufacturers(self):
         """Получение списка производителей"""

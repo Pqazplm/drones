@@ -5,6 +5,7 @@
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
+    QStyledItemDelegate,
     QAbstractItemView,
     QDialog,
     QDialogButtonBox,
@@ -22,7 +23,9 @@ from PyQt5.QtWidgets import (
 
 )
 from .model import ContactsModel
-
+from PyQt5.QtWidgets import QComboBox, QInputDialog
+from PyQt5.QtWidgets import QFileDialog, QLabel, QVBoxLayout
+from PyQt5.QtGui import QPixmap
 
 class Window(QMainWindow):
     """Главное окно приложения для управления базой данных дронов"""
@@ -32,7 +35,7 @@ class Window(QMainWindow):
         self.setWindowTitle("База данных дронов")
 
         # Устанавливаем минимальный размер окна
-        self.setMinimumSize(600, 250)
+        self.setMinimumSize(800, 250)
 
         # Центральный виджет и основной макет
         self.centralWidget = QWidget()
@@ -49,6 +52,8 @@ class Window(QMainWindow):
         # Настройка интерфейса
         self.setupUI()
 
+
+
     def setupUI(self):
         """Настройка графического интерфейса с правильным масштабированием"""
 
@@ -56,11 +61,18 @@ class Window(QMainWindow):
         self.table = QTableView()
         self.table.setModel(self.contactsModel.model)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setItemDelegate(ImageDelegate(self.table))
+
+        # Настройка столбцов (изображение в 5-м столбце)
+        self.table.setColumnWidth(5, 200)  # Ширина столбца с изображениями
+        self.table.verticalHeader().setDefaultSectionSize(150)  # Высота строк
 
         # Настройка заголовков таблицы
-        header = self.table.horizontalHeader()
-        header.setStretchLastSection(True)  # Растягиваем последний столбец
-        header.setSectionResizeMode(QHeaderView.Interactive)  # Разрешаем изменение ширины
+        headers = ("ID", "Модель", "Вес (г)", "Производитель", "Макс. дистанция (м)", "Спектр")
+        for col, header in enumerate(headers):
+            self.table.model().setHeaderData(col, Qt.Horizontal, header)
+        self.table.setModel(self.contactsModel.model)
+
 
         # Фиксированная высота строк
         self.table.verticalHeader().setDefaultSectionSize(30)
@@ -168,17 +180,58 @@ class Window(QMainWindow):
         self.contactsModel.model.select()
 
 
-from PyQt5.QtWidgets import QComboBox, QInputDialog
+from PyQt5.QtCore import Qt, QSize  # Добавляем QSize в импорты
+
+class ImageDelegate(QStyledItemDelegate):
+    """Делегат для отображения изображений в таблице"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.image_size = QSize(200, 150)  # Фиксированный размер для изображений
+
+    def paint(self, painter, option, index):
+        """Отрисовывает изображение в ячейке"""
+        if index.column() == 5:  # Столбец с изображениями
+            path = index.data()
+            if path:  # Если есть путь к изображению
+                try:
+                    pixmap = QPixmap(path)
+                    if not pixmap.isNull():
+                        # Масштабируем изображение с сохранением пропорций
+                        scaled = pixmap.scaled(
+                            option.rect.width() - 10,  # -10 для отступов
+                            option.rect.height() - 10,
+                            Qt.KeepAspectRatio,
+                            Qt.SmoothTransformation
+                        )
+                        # Выравниваем по центру
+                        x = option.rect.x() + (option.rect.width() - scaled.width()) // 2
+                        y = option.rect.y() + (option.rect.height() - scaled.height()) // 2
+                        painter.drawPixmap(x, y, scaled)
+                        return
+                except Exception as e:
+                    print(f"Error loading image: {e}")
+
+        # Если нет изображения или это другой столбец - стандартная отрисовка
+        super().paint(painter, option, index)
+
+    def sizeHint(self, option, index):
+        """Задает размер ячейки для изображений"""
+        if index.column() == 5:
+            return self.image_size
+        return super().sizeHint(option, index)
 
 
 class AddDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.setWindowTitle("Добавить дрон")
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.main_layout = QVBoxLayout()  # Используем только один layout
+        self.setLayout(self.main_layout)
         self.data = None
+        self.image_path = ""
         self.setupUI()
+        self.setupImageUI()
 
     def setupUI(self):
         # Создаем выпадающие списки
@@ -193,19 +246,44 @@ class AddDialog(QDialog):
         self.weightField = QLineEdit()
         self.distanceField = QLineEdit()
 
-        # Форма
-        form = QFormLayout()
-        form.addRow("Модель:", self.modelCombo)
-        form.addRow("Производитель:", self.manufacturerCombo)
-        form.addRow("Вес (г):", self.weightField)
-        form.addRow("Макс. дистанция (м):", self.distanceField)
-        self.layout.addLayout(form)
+        # Форма для основных полей
+        form_layout = QFormLayout()
+        form_layout.addRow("Модель:", self.modelCombo)
+        form_layout.addRow("Производитель:", self.manufacturerCombo)
+        form_layout.addRow("Вес (г):", self.weightField)
+        form_layout.addRow("Макс. дистанция (м):", self.distanceField)
+
+
+        # Добавляем форму в главный layout
+        self.main_layout.addLayout(form_layout)
 
         # Кнопки
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        self.layout.addWidget(buttons)
+        self.main_layout.addWidget(buttons)
+
+    def setupImageUI(self):
+        """Элементы для работы с изображением"""
+        self.btn_load = QPushButton("Загрузить фото дрона")
+        self.btn_load.clicked.connect(self.loadImage)
+
+        self.lbl_preview = QLabel()
+        self.lbl_preview.setFixedSize(200, 200)
+        self.lbl_preview.setStyleSheet("border: 1px solid #ccc;")
+        self.lbl_preview.setAlignment(Qt.AlignCenter)
+
+        # Layout для изображения
+        image_layout = QVBoxLayout()
+        image_layout.addWidget(QLabel("Фото дрона:"))
+        image_layout.addWidget(self.btn_load)
+        image_layout.addWidget(self.lbl_preview)
+
+        # Вставляем layout с изображением перед кнопками
+        self.main_layout.insertLayout(self.main_layout.count() - 1, image_layout)
+
+
+
 
     def setupComboBox(self, combo, item_type, data_func):
         """Настраивает выпадающий список"""
@@ -278,6 +356,22 @@ class AddDialog(QDialog):
     def getManufacturers(self):
         return self.parent().contactsModel.getManufacturers()
 
+
+    def loadImage(self):
+        """Диалог выбора изображения"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Выберите изображение дрона",
+            "",
+            "Image Files (*.png *.jpg *.jpeg)"
+        )
+
+        if file_path:
+            self.image_path = file_path
+            pixmap = QPixmap(file_path).scaled(
+                200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.lbl_preview.setPixmap(pixmap)
+
     def accept(self):
         """Проверка данных перед сохранением"""
         model = self.modelCombo.currentText()
@@ -299,7 +393,7 @@ class AddDialog(QDialog):
             QMessageBox.warning(self, "Ошибка", "Выберите производителя из списка")
             return
 
-        self.data = [model, weight, manufacturer, distance]
+        self.data = [model, weight, manufacturer, distance, self.image_path]
         super().accept()
 
 
